@@ -84,6 +84,7 @@ type
     Label10: TLabel;
     Label11: TLabel;
     Button2: TButton;
+    CheckBox1: TCheckBox;
     procedure btnChargeDllClick(Sender: TObject);
     procedure btnDechargeDllClick(Sender: TObject);
     procedure btnAppelFct2IntClick(Sender: TObject);
@@ -104,6 +105,13 @@ type
     procedure btnShowOutlineClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
     procedure Button2Click(Sender: TObject);
+    procedure CheckBox1Click(Sender: TObject);
+    procedure edLS_XdebChange(Sender: TObject);
+    procedure edLS_YdebChange(Sender: TObject);
+    procedure edLS_LenChange(Sender: TObject);
+    procedure edLS_PointsChange(Sender: TObject);
+    procedure Ed_NbLinesChange(Sender: TObject);
+
   private { Déclarations privées }
     HDll : THandle;
   public  { Déclarations publiques }
@@ -310,6 +318,8 @@ begin
     lbRes2Int.Caption := 'function '+edNomFct2Int.Text+' not found or not loaded';
     Exit;
   End;
+  If  CheckBox1.Checked then
+    CheckBox1.Checked := false;
   Xr := edX.Value/100;
   Yr := edY.Value/100;
   Res := FuncXY(Xr,Yr);
@@ -387,9 +397,10 @@ end;
 procedure TEcrTestAriadni.btnAppelSetGenClick(Sender: TObject);
 Var
   Res : Integer;
-
   TableGen : TTablesXY;
   FuncSetGen : function(Const Table:TTablesXY):Integer; StdCall;
+ // FuncSetGen : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+
 begin
   If HDll = 0 then
   Begin
@@ -408,11 +419,11 @@ begin
   EchX := edEchX.Value / 100;
   EchY := edEchY.Value / 100;
   SinCos(edAngle.Value*PI/180, SinRot, CosRot);
-
   CreeCible(TableGen);
 
   //Appelle la fonction
   Res := FuncSetGen(TableGen);
+  //Res := FuncSetGen(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
   lbResSetGen.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8);
 end;
 
@@ -588,7 +599,8 @@ begin
     lbResLineScan.Caption := 'DLL not loaded';
     Exit;
   End;
-
+  If  CheckBox1.Checked then
+    CheckBox1.Checked := false;
   @FuncSetLineScan := GetProcAddress(HDll, PChar(edNomSetLineScan.Text));
   If @FuncSetLineScan = Nil then
   Begin
@@ -759,5 +771,123 @@ procedure TEcrTestAriadni.Button2Click(Sender: TObject);
 begin
   FeeddbackAriadniOK := true;
 end;
+
+procedure TEcrTestAriadni.CheckBox1Click(Sender: TObject);
+Var
+   NbLignes, Res : Integer;
+   FuncSetGen2 : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+begin
+  If  CheckBox1.Checked then
+  Begin
+    @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+    If @FuncSetGen2 = Nil then
+    Begin
+      lbResLineScan.Caption := 'function Ruster can not be displayed';
+      Exit;
+    End;
+    NbLignes := strtoint(Ed_NbLines.text);
+    Res := FuncSetGen2(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
+  End;//Construit la table de 480 points
+  If  CheckBox1.Checked =  false   then
+    Begin
+    @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+    If @FuncSetGen2 = Nil then
+    Begin
+      lbResLineScan.Caption := 'function Ruster can not be displayed';
+      Exit;
+    End;
+      Res := FuncSetGen2(0/100,0/100,10,10,0/100);
+  End;
+end;
+
+procedure TEcrTestAriadni.edLS_XdebChange(Sender: TObject);
+Var
+   NbLignes : Integer;
+   FuncSetGen2 : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+begin
+   If  CheckBox1.Checked then
+   Begin
+     @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+     If @FuncSetGen2 = Nil then
+     Begin
+       Exit;
+     End;
+     NbLignes := strtoint(Ed_NbLines.text);
+     FuncSetGen2(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
+   End;
+end;
+
+procedure TEcrTestAriadni.edLS_YdebChange(Sender: TObject);
+Var
+   NbLignes : Integer;
+   FuncSetGen2 : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+begin
+   If  CheckBox1.Checked then
+   Begin
+     @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+     If @FuncSetGen2 = Nil then
+     Begin
+       Exit;
+     End;
+     NbLignes := strtoint(Ed_NbLines.text);
+     FuncSetGen2(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
+   End;
+end;
+
+procedure TEcrTestAriadni.edLS_LenChange(Sender: TObject);
+Var
+   NbLignes : Integer;
+   FuncSetGen2 : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+begin
+   If  CheckBox1.Checked then
+   Begin
+     @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+     If @FuncSetGen2 = Nil then
+     Begin
+       Exit;
+     End;
+     NbLignes := strtoint(Ed_NbLines.text);
+     FuncSetGen2(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
+   End;
+end;
+
+procedure TEcrTestAriadni.edLS_PointsChange(Sender: TObject);
+Var
+   NbLignes : Integer;
+   FuncSetGen2 : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+begin
+   If  CheckBox1.Checked then
+   Begin
+     @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+     If @FuncSetGen2 = Nil then
+     Begin
+       Exit;
+     End;
+     NbLignes := strtoint(Ed_NbLines.text);
+     FuncSetGen2(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
+   End;
+end;
+
+procedure TEcrTestAriadni.Ed_NbLinesChange(Sender: TObject);
+Var
+   NbLignes : Integer;
+   FuncSetGen2 : function(x,y : Double;points,lines : Integer;distanse : Double):Integer; StdCall;
+begin
+   If  CheckBox1.Checked then
+   Begin
+     @FuncSetGen2 := GetProcAddress(HDll, 'ShowScan');
+     If @FuncSetGen2 = Nil then
+     Begin
+       Exit;
+     End;
+     If Ed_NbLines.text = ''  then
+     Begin
+       Ed_NbLines.text := '1';
+     End;
+     NbLignes := strtoint(Ed_NbLines.text);
+     FuncSetGen2(edLS_Xdeb.Value/100,edLS_Ydeb.Value/100,edLS_Points.Value,NbLignes,edLS_Len.Value/100);
+   End;
+end;
+
 
 end.

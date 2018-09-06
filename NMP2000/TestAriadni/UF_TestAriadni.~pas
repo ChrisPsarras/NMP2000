@@ -62,7 +62,7 @@ type
     cbIDU: TCheckBox;
     cbCS: TCheckBox;
     Label7: TLabel;
-    edLS_SpinFreq: TSpinEdit;
+    edLS_AcqTime: TSpinEdit;
     Label8: TLabel;
     edLS_Tem: TSpinEdit;
     Bevel4: TBevel;
@@ -79,6 +79,11 @@ type
     cbShowGui: TCheckBox;
     btnShowOutline: TButton;
     Button1: TButton;
+    Ed_NbLines: TEdit;
+    Ed_waitPt: TEdit;
+    Label10: TLabel;
+    Label11: TLabel;
+    Button2: TButton;
     procedure btnChargeDllClick(Sender: TObject);
     procedure btnDechargeDllClick(Sender: TObject);
     procedure btnAppelFct2IntClick(Sender: TObject);
@@ -98,15 +103,15 @@ type
     procedure cbShowGuiClick(Sender: TObject);
     procedure btnShowOutlineClick(Sender: TObject);
     procedure Button1Click(Sender: TObject);
+    procedure Button2Click(Sender: TObject);
   private { Déclarations privées }
     HDll : THandle;
-    InitOk : Boolean;
   public  { Déclarations publiques }
   end;
 
 var
   EcrTestAriadni: TEcrTestAriadni;
-
+  FeeddbackAriadniOK : boolean;
 implementation
 
 uses UF_Target;
@@ -115,12 +120,6 @@ uses UF_Target;
 
 procedure TEcrTestAriadni.FormDestroy(Sender: TObject);
 begin
-  If InitOk then
-  begin
-    btnAppelReleaseClick(Nil);
-    Sleep(100);
-  End;
-
   If HDll <> 0 then
     FreeLibrary(HDll);
 end;
@@ -158,20 +157,12 @@ procedure TEcrTestAriadni.btnDechargeDllClick(Sender: TObject);
 begin
   If HDll = 0 then
   Begin
-    lbEtatDll.Caption := 'DLL state : not loaded';
+    lbEtatDll.Caption := 'DLL state : failed to load';
     Exit;
   End;
 
   If FreeLibrary(HDll) then
   Begin
-    If @FuncRelease = Nil then
-    Begin
-      lbResInit.Caption := 'function '+edNomRelease.Text+' not found or not loaded';
-      Exit;
-    End;
-    Res := FuncRelease();
-    lbResInit.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8);
-    InitOk := not (Res <> 0);
     HDll := 0;
     lbEtatDll.Caption := 'DLL state : unloaded';
     btnChargeDll.Enabled := True;
@@ -218,7 +209,8 @@ end;
 
 function AriadniCallBack(Num:integer; Value:Double):Integer; stdcall;
 Begin
-  EcrTestAriadni.Logbox.Items.Add(TimeToStr(Now)+' :  Status(int)='+IntToStr(Num)+'  SettingValue(double)='+FloatToStr(Value));
+  EcrTestAriadni.Logbox.Items.Add(TimeToStr(Now)+' :  Int='+IntToStr(Num)+'  Double='+FloatToStr(Value));
+  FeeddbackAriadniOK := true;
   Result := NotifRetVal;
 End;
 
@@ -234,13 +226,7 @@ begin
     lbResInit.Caption := 'DLL not loaded';
     Exit;
   End;
-{
-  If InitOk then
-  Begin
-    lbEtatDll.Caption := 'DLL already initialized';
-    Exit;
-  End;
-}
+
   @FuncInit := GetProcAddress(HDll, PChar(edNomInit.Text));
   If @FuncInit = Nil then
   Begin
@@ -248,11 +234,7 @@ begin
     Exit;
   End;
   Res := FuncInit(AriadniCallBack);
-//  Res := FuncInit(nil);
-
   lbResInit.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8);
-
-  InitOk := (Res <> 0);
 end;
 
 procedure TEcrTestAriadni.btnAppelReleaseClick(Sender: TObject);
@@ -265,13 +247,7 @@ begin
     lbResInit.Caption := 'DLL not loaded';
     Exit;
   End;
-{
-  If not InitOk then
-  Begin
-    lbEtatDll.Caption := 'DLL already released';
-    Exit;
-  End;
-}
+
   @FuncRelease := GetProcAddress(HDll, PChar(edNomRelease.Text));
   If @FuncRelease = Nil then
   Begin
@@ -280,7 +256,6 @@ begin
   End;
   Res := FuncRelease();
   lbResInit.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8);
-  InitOk := not (Res <> 0);
 end;
 
 procedure TEcrTestAriadni.cbShowGuiClick(Sender: TObject);
@@ -305,6 +280,7 @@ begin
 end;
 
 
+
 //------------------------------------------------------------------------------
 
 procedure TEcrTestAriadni.edNomFct2IntChange(Sender: TObject);
@@ -319,6 +295,7 @@ end;
 procedure TEcrTestAriadni.btnAppelFct2IntClick(Sender: TObject);
 Var
   Res : Integer;
+  Xr, Yr : double;
   FuncXY : function(X,Y:Double):Integer; StdCall;
 begin
   If HDll = 0 then
@@ -333,7 +310,9 @@ begin
     lbRes2Int.Caption := 'function '+edNomFct2Int.Text+' not found or not loaded';
     Exit;
   End;
-  Res := FuncXY(edX.Value, edY.Value);
+  Xr := edX.Value/100;
+  Yr := edY.Value/100;
+  Res := FuncXY(Xr,Yr);
   lbRes2Int.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8);
 end;
 
@@ -396,115 +375,6 @@ Begin
   For I := 0 to 109 do //Ligne de HG à BG
     MetPoint( -EchX, (1 - 2*I/110)*EchY);
 End;
-
-(*
-Procedure CreeCible(VAR Table:TTablesXY);
-Var
-  Largeur,  Hauteur : Double;
-  DemiHaut, DemiLarg : Double;
-
-  dL : Double;
-  LimiteX, LimiteY : Double;
-  X,Y : Double;
-
-  N : Integer;
-
-   Procedure MetPoint(X,Y:Double);
-   Begin
-     Assert (N < NbrePtsMire, 'Erreur Nbre Pts dans TDeviaP2000.InitTableZone');
-     Table.X[N] := X*CosRot-Y*SinRot;
-     Table.Y[N] := X*SinRot+Y*CosRot;
-     Inc(N);
-   End;
-Begin
-{$IFDEF AfficheLog}
-  Log('Enter InitTableZone');
-{$ENDIF}
-  Largeur := LargCarte * StepX;
-  Hauteur := HautCarte * StepY;
-  DemiLarg := Largeur/2;
-  DemiHaut := Hauteur/2;
-
-  //Longueur à parcourir dans laquelle il faudra répartir les 512 pts
-  // 2*largeur + 2* hauteur + flèche = Largeur*(3*2/32)
-  dL := (Largeur*2.1875 + Hauteur*2) / NbrePtsMire;
-//  NLarg := Round(512 * LargCarte / L); //Nbre pts à placer sur largeur
-//  NHaut := Round(512 * HautCarte / L); //Nbre Pts à placer sur hauteur
-
-  //Point de départ en haut à gauche
-  X := -DemiLarg;
-  Y := -DemiHaut;
-  N := 0;
-  //Horizontale jusqu'à pointe de la flèche
-  LimiteX := -DemiLarg + (Largeur*9)/32;
-  Repeat
-    MetPoint(X, Y);
-    X := X + dL;
-  until X >= LimiteX;
-
-  //Branche haute de la flèche
-  LimiteX := -DemiLarg + (Largeur*7)/32;
-  Repeat
-    MetPoint(X, Y);
-    X := X - dL;
-    Y := Y - dl*0.7;
-  until X <= LimiteX;
-
-  //Branche verticale de la flèche
-  LimiteY := -Hauteur + Y;
-  Repeat
-    MetPoint(X, Y);
-    Y := Y + dl*0.7;
-  until Y >= LimiteY;
-
-  //Branche basse de la flèche
-  LimiteX := -DemiLarg + Round((Largeur*9)/32);
-  Repeat
-    MetPoint(X, Y);
-    X := X + dL;
-    Y := Y + dl*0.7;
-  until X >= LimiteX;
-
-  //Horizontale de la pointe de la flèche jusqu'au bord droit
-  Y := -DemiHaut; //Pour rattrapper cumul erreur
-  X := X + dL; //Ce point est déjà tracé
-  Repeat
-    MetPoint(X, Y);
-    X := X + dL;
-  until X >= DemiLarg;
-  Y := Y + (X-DemiLarg); //Reporte dépassement sur Y
-  X := DemiLarg;
-
-  //Bord droit jusqu'en bas
-  Repeat
-    MetPoint(X, Y);
-    Y := Y + dl;
-  until Y >= DemiHaut;
-  X := DemiLarg-(Y-DemiHaut); //Reporte dépassement sur X
-  Y := DemiHaut;
-
-  //Bord bas jusqu'à limite gauche
-  dL := (Largeur+Hauteur)/(NbrePtsMire-N); //Ajuste nbre de pts restant
-  Repeat
-    MetPoint(X, Y);
-    X := X - dL;
-  until X <= -DemiLarg;
-  Y := Y + (X+DemiLarg); //Reporte dépassement sur Y
-  X := -DemiLarg;
-
-  //Bord gauche jusqu'en haut
-  dL := Hauteur/(NbrePtsMire-N); //Ajuste nbre de pts restant
-  Repeat
-    MetPoint(X, Y);
-    Y := Y - dl;
-  until Y <= -DemiHaut;
-
-  Assert (N = NbrePtsMire, 'Erreur N<>NbrePtsMire ('+IntToStr(N)+')');
-
-  AriSetScanOutline([BeamDeflectUp], TableGen);
-  Result := True;
-End;
-*)
 
 procedure TEcrTestAriadni.edNomSetGenChange(Sender: TObject);
 begin
@@ -696,10 +566,12 @@ Var
 
   Channels : TDestChannels;
   Table : Array of TScanData;
-  I : Integer;
+  I,j : Integer;
+  NbLignes : integer;
+  WaitingTime :  integer;
   X0, Y0 : Double;
   LineLen : Double;
-  NbrePoints : Integer;
+  NbrePoints  : Integer;
   CosA, SinA:Extended;
 
   TSpin : Double;
@@ -744,87 +616,106 @@ begin
   NbrePoints := edLS_Points.Value;
   SinCos(edLS_Angle.Value*PI/180, SinA, CosA);
 
-  TSpin := 1e6 / edLS_SpinFreq.Value;
+  TSpin := edLS_AcqTime.Value*100;
   TTem  := edLS_Tem.Value;
 
-  If CameraShutter in Channels
+  WaitingTime := strtoint(Ed_waitPt.Text); // en ms
+  NbLignes := strtoint(Ed_NbLines.text);
+  res := -100;
+
+    If CameraShutter in Channels
     then SetLength(Table, NbrePoints * 2)
     else SetLength(Table, NbrePoints);
 
-  NumPt := 0;
-  T := 0;
-  For I := 0 to NbrePoints-1 do
-  Begin
-    X := X0 + LineLen*CosA * I/NbrePoints;
-    Y := Y0 + LineLen*SinA * I/NbrePoints;
+  For J:=0 to NbLignes-1 do
+  begin
+        NumPt := 0;
+        T := 0;
+        For I := 0 to NbrePoints-1 do
+        Begin
+          X := X0 + LineLen*CosA * I/NbrePoints - LineLen*SinA * J/NbrePoints;
+          Y := Y0 + LineLen*SinA * I/NbrePoints + LineLen*CosA * J/NbrePoints;
 
-    With Table[NumPt] do
-    Begin
-      If BeamDeflectUp in Channels then
-      Begin
-        BDUX := X;
-        BDUY := Y;
-      End
-      else
-      Begin
-        BDUX := 0;
-        BDUY := 0;
-      End;
+          With Table[NumPt] do
+          Begin
+            If BeamDeflectUp in Channels then
+            Begin
+              BDUX := X;
+              BDUY := Y;
+            End
+            else
+            Begin
+              BDUX := 0;
+              BDUY := 0;
+            End;
 
-      If BeamDeflectLo in Channels then
-      Begin
-        BDLX := X;
-        BDLY := Y;
-      End
-      else
-      Begin
-        BDLX := 0;
-        BDLY := 0;
-      End;
+            If BeamDeflectLo in Channels then
+            Begin
+              BDLX := X;
+              BDLY := Y;
+            End
+            else
+            Begin
+              BDLX := 0;
+              BDLY := 0;
+            End;
 
-      If ImageDeflectUp in Channels then
-      Begin
-        IDX := X;
-        IDY := Y;
-      End
-      else
-      Begin
-        IDX := 0;
-        IDY := 0;
-      End;
+            If ImageDeflectUp in Channels then
+            Begin
+              IDX := X;
+              IDY := Y;
+            End
+            else
+            Begin
+              IDX := 0;
+              IDY := 0;
+            End;
 
-      Channel9 := 0;
+            Channel9 := 0;
 
-      If CameraShutter in Channels then
-      Begin //Avec cam shutter
-        Shutter := 0.75;
-        Inc(T, Round(TSpin)); //Temps d'acquisition
-      End
-      else
-      Begin //sans cam shutter : freerun
-        Shutter := 0;
-        T := Round(TSpin*(NumPt+1));
-      End;
+            If CameraShutter in Channels then
+            Begin //Avec cam shutter
+              Shutter := 0.75;
+              Inc(T, Round(TSpin)); //Temps d'acquisition
+            End
+            else
+            Begin //sans cam shutter : freerun
+              Shutter := 0;
+              T := Round(TSpin*(NumPt+1));
+            End;
 
-      Time := T; // moment du changement d'état suivant
-    End;
-    Inc(NumPt);
+            Time := T; // moment du changement d'état suivant
+          End;
+          Inc(NumPt);
 
-    If CameraShutter in Channels then
-    Begin
-      Table[NumPt] := Table[NumPt-1];
-      Table[NumPt].Shutter := 0;
-      T := Round((TSpin+TTem)*(I+1));
-      Table[NumPt].Time := T;
+          If CameraShutter in Channels then
+          Begin
+            Table[NumPt] := Table[NumPt-1];
+            Table[NumPt].Shutter := 0;
+            T := Round((TSpin+TTem)*(I+1));
+            Table[NumPt].Time := T;
 
-      Inc(NumPt);
-    End;
-  End;
+            Inc(NumPt);
+          End;
+        End;
 
   //Appelle la fonction
-  Res := FuncSetLineScan(Channels, NumPt, Table[0]);
-  lbResLineScan.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8);
-
+    FeeddbackAriadniOK := false;
+    Res := FuncSetLineScan(Channels, NumPt, Table[0]);
+    IF Res = NumPt then      FeeddbackAriadniOK := false;
+    application.ProcessMessages;
+    while NOT FeeddbackAriadniOK do
+    begin
+//       EcrTestAriadni.Logbox.Items.Add(INttostr(J) + '  ' + TimeToStr(Now) + '  ' + inttostr(res));
+       lbResLineScan.Color := clRed;
+//       sleep(10);
+       application.ProcessMessages;
+    end;
+    lbResLineScan.Color := clBtnFace;
+    lbResLineScan.Caption := 'Ok Result = '+ IntToStr(Res)+' = 0x'+IntToHex(Res, 8) + 'line: ' + IntToStr(J);
+     application.ProcessMessages;
+    sleep(WaitingTime);
+  end;
 //  Table := Nil;
 end;
 
@@ -863,5 +754,10 @@ Exports
   MoveBeam      name 'MoveBeam',
   SetGenerator  name 'SetGenerator';
 
+
+procedure TEcrTestAriadni.Button2Click(Sender: TObject);
+begin
+  FeeddbackAriadniOK := true;
+end;
 
 end.
